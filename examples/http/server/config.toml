@@ -3,6 +3,8 @@ port = 9007
 EnableAccessInterceptor = true
 EnableAccessInterceptorReq = true
 EnableAccessInterceptorRes = true
+AccessInterceptorReqResFilter = 'request.headers["x-uid"] == "100" && response.code == 200'
+
 [trace.jaeger]
 ServiceName = "server"
 
