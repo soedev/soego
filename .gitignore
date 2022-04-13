@@ -1,6 +1,7 @@
 .idea
 bin
 logs
+dist
 
 node_modules
 .vscode
