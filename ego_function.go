@@ -252,7 +252,8 @@ func (e *SoEgo) printBanner() error {
              _/   _/    _/   _/        _/    _/  _/    _/     
       _/_/_/_/     _/_/     _/_/_/_/    _/_/_/    _/_/  
 
-     Welcome to SoEgo (luc fork ego), starting application ...
+     Welcome to SoEgo (fork ego), starting application ...
+     Our team members：lero  ht  wzx  luc
 `
 	fmt.Println(xcolor.Blue(banner))
 	return nil
