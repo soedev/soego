@@ -19,22 +19,8 @@ var (
 	TypeGorm = "gorm"
 	// TypeWebsocket ...
 	TypeWebsocket = "ws"
-
 	// TypeMySQL ...
 	TypeMySQL = "mysql"
-
-	// CodeJobSuccess ...
-	CodeJobSuccess = "ok"
-	// CodeJobFail ...
-	CodeJobFail = "fail"
-	// CodeJobReentry ...
-	CodeJobReentry = "reentry"
-
-	// CodeCacheMiss ...
-	CodeCacheMiss = "miss"
-	// CodeCacheHit ...
-	CodeCacheHit = "hit"
-
 	// DefaultNamespace ...
 	DefaultNamespace = "ego"
 )
@@ -68,6 +54,13 @@ var (
 		Labels:    []string{"type", "name", "method", "peer"},
 	}.Build()
 
+	// ClientStatsGauge ...
+	ClientStatsGauge = GaugeVecOpts{
+		Namespace: DefaultNamespace,
+		Name:      "client_stats_gauge",
+		Labels:    []string{"type", "name", "index"},
+	}.Build()
+
 	// JobHandleCounter ...
 	JobHandleCounter = CounterVecOpts{
 		Namespace: DefaultNamespace,
@@ -81,19 +74,25 @@ var (
 		Name:      "job_handle_seconds",
 		Labels:    []string{"type", "name"},
 	}.Build()
+
 	// LibHandleHistogram ...
+	// Deprecated LibHandleHistogram
 	LibHandleHistogram = HistogramVecOpts{
 		Namespace: DefaultNamespace,
 		Name:      "lib_handle_seconds",
 		Labels:    []string{"type", "method", "address"},
 	}.Build()
+
 	// LibHandleCounter ...
+	// Deprecated LibHandleCounter
 	LibHandleCounter = CounterVecOpts{
 		Namespace: DefaultNamespace,
 		Name:      "lib_handle_total",
 		Labels:    []string{"type", "method", "address", "code"},
 	}.Build()
+
 	// LibHandleSummary ...
+	// Deprecated LibHandleSummary
 	LibHandleSummary = SummaryVecOpts{
 		Namespace: DefaultNamespace,
 		Name:      "lib_handle_stats",
