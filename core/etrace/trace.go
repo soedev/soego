@@ -2,7 +2,6 @@ package etrace
 
 import (
 	"context"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -25,6 +24,7 @@ var (
 // SetGlobalTracer ...
 func SetGlobalTracer(tp trace.TracerProvider) {
 	globalTracer = registeredTracer{true}
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetTracerProvider(tp)
 }
 

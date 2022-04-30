@@ -22,7 +22,7 @@ import (
 	"github.com/soedev/soego/core/eflag"
 	"github.com/soedev/soego/core/elog"
 	"github.com/soedev/soego/core/etrace"
-	"github.com/soedev/soego/core/etrace/ejaeger"
+	"github.com/soedev/soego/core/etrace/otel"
 	"github.com/soedev/soego/core/util/xcolor"
 )
 
@@ -195,18 +195,18 @@ func (e *SoEgo) initLogger() error {
 // initTracer init global tracer
 func (e *SoEgo) initTracer() error {
 	var (
-		container *ejaeger.Config
+		container *otel.Config
 	)
 
-	if econf.Get(e.opts.configPrefix+"trace.jaeger") != nil {
-		container = ejaeger.Load(e.opts.configPrefix + "trace.jaeger")
+	if econf.Get(e.opts.configPrefix+"trace") != nil {
+		container = otel.Load(e.opts.configPrefix + "trace")
 	} else {
 		// 设置默认trace
-		container = ejaeger.DefaultConfig()
+		container = otel.DefaultConfig()
 	}
 
 	// 禁用trace
-	if econf.GetBool(e.opts.configPrefix + "trace.jaeger.disable") {
+	if econf.GetBool(e.opts.configPrefix + "trace.disable") {
 		elog.EgoLogger.Info("disable trace", elog.FieldComponent("app"))
 		return nil
 	}
