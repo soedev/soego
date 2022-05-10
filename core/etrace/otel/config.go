@@ -13,7 +13,6 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
 )
 
 // Config ...
@@ -152,7 +151,7 @@ func (config *Config) buildOtlpTP() trace.TracerProvider {
 		otlptracegrpc.WithInsecure(),                     // WithInsecure disables client transport security for the exporter's gRPC
 		otlptracegrpc.WithHeaders(config.Otlp.Headers),   //WithHeaders will send the provided headers with each gRPC requests.
 		otlptracegrpc.WithEndpoint(config.Otlp.Endpoint), //WithEndpoint sets the target endpoint the exporter will connect to. If unset, localhost:4317 will be used as a default.
-		otlptracegrpc.WithDialOption(grpc.WithBlock()),
+		//otlptracegrpc.WithDialOption(grpc.WithBlock()),
 	}
 	options = append(options, config.Otlp.options...)
 	traceClient := otlptracegrpc.NewClient(options...)
