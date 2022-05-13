@@ -148,7 +148,8 @@ func (e *SoEgo) parseFlags() error {
 		Default: "0.0.0.0",
 		Action:  func(string, *eflag.FlagSet) {},
 	})
-	return eflag.Parse()
+
+	return eflag.ParseWithArgs(e.opts.arguments)
 }
 
 // loadConfig init
