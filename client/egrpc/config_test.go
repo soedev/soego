@@ -30,6 +30,7 @@ func TestDefaultConfig(t *testing.T) {
 		EnableAccessInterceptorRes:   false,
 		EnableCPUUsage:               true,
 		EnableFailOnNonTempDialError: true,
+		EnableServiceConfig:          true,
 		keepAlive:                    nil,
 		dialOptions:                  nil,
 	}, DefaultConfig()))
