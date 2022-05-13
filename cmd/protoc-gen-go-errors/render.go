@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	errorsPackage = protogen.GoImportPath("github.com/gotomicro/ego/core/eerrors")
+	errorsPackage = protogen.GoImportPath("github.com/soedev/soego/core/eerrors")
 	codesPackage  = protogen.GoImportPath("google.golang.org/grpc/codes")
 )
 
