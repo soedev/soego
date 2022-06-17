@@ -3,6 +3,8 @@ package ecron
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"runtime"
 	"time"
 
@@ -25,7 +27,9 @@ func (wj wrappedJob) Run() {
 }
 
 func (wj wrappedJob) run() {
-	ctx, span := wj.tracer.Start(context.Background(), "ego-cron", nil)
+	ctx, span := wj.tracer.Start(context.Background(), "ego-cron", nil, trace.WithAttributes(
+		attribute.String("ecron.name", wj.Name()),
+	))
 	defer span.End()
 
 	traceID := etrace.ExtractTraceID(ctx)
