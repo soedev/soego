@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"runtime"
@@ -28,9 +29,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/soedev/soego/internal/egrpcinteceptor"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 )
 
 // metricUnaryClientInterceptor returns grpc unary request metrics collector interceptor
@@ -43,7 +46,7 @@ func (c *Container) metricUnaryClientInterceptor() func(ctx context.Context, met
 		emetric.ClientHandleHistogram.ObserveWithExemplar(time.Since(beg).Seconds(), prometheus.Labels{
 			"tid": etrace.ExtractTraceID(ctx),
 		}, emetric.TypeGRPCUnary, c.name, method, cc.Target())
-		emetric.ClientHandleCounter.Inc(emetric.TypeGRPCUnary, c.name, method, cc.Target(), statusInfo.Message())
+		emetric.ClientHandleCounter.Inc(emetric.TypeGRPCUnary, c.name, method, cc.Target(), statusInfo.Code().String())
 		return err
 	}
 }
@@ -68,7 +71,8 @@ func (c *Container) debugUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 func (c *Container) traceUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 	tracer := etrace.NewTracer(trace.SpanKindClient)
 	attrs := []attribute.KeyValue{
-		semconv.RPCSystemKey.String("grpc"),
+		egrpcinteceptor.RPCSystemGRPC,
+		egrpcinteceptor.GRPCKindUnary,
 	}
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) (err error) {
 		md, ok := metadata.FromOutgoingContext(ctx)
@@ -80,7 +84,7 @@ func (c *Container) traceUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 			semconv.RPCMethodKey.String(method),
 			semconv.NetPeerNameKey.String(c.config.Addr),
 		)
-		// 因为我们最新执行trace，所以这里，直接new出来metadata
+		// 因为我们最先执行trace，所以这里，直接new出来metadata
 		ctx = metadata.NewOutgoingContext(ctx, md)
 		defer func() {
 			if err != nil {
@@ -107,6 +111,175 @@ func (c *Container) defaultUnaryClientInterceptor() grpc.UnaryClientInterceptor 
 			ctx = metadata.AppendToOutgoingContext(ctx, "enable-cpu-usage", "true")
 		}
 		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+type streamEventType int
+
+type streamEvent struct {
+	Type streamEventType
+	Err  error
+}
+
+const (
+	receiveEndEvent streamEventType = iota
+	errorEvent
+)
+
+var _ = proto.Marshal
+
+// clientStream  wraps around the embedded grpc.ClientStream, and intercepts the RecvMsg and
+// SendMsg method call.
+type clientStream struct {
+	grpc.ClientStream
+
+	desc       *grpc.StreamDesc
+	events     chan streamEvent
+	eventsDone chan struct{}
+	finished   chan error
+
+	receivedMessageID int
+	sentMessageID     int
+}
+
+func (w *clientStream) RecvMsg(m interface{}) error {
+	err := w.ClientStream.RecvMsg(m)
+
+	if err == nil && !w.desc.ServerStreams {
+		w.sendStreamEvent(receiveEndEvent, nil)
+	} else if err == io.EOF {
+		w.sendStreamEvent(receiveEndEvent, nil)
+	} else if err != nil {
+		w.sendStreamEvent(errorEvent, err)
+	} else {
+		w.receivedMessageID++
+		egrpcinteceptor.MessageReceived.Event(w.Context(), w.receivedMessageID, m)
+	}
+
+	return err
+}
+
+func (w *clientStream) SendMsg(m interface{}) error {
+	err := w.ClientStream.SendMsg(m)
+
+	w.sentMessageID++
+	egrpcinteceptor.MessageSent.Event(w.Context(), w.sentMessageID, m)
+
+	if err != nil {
+		w.sendStreamEvent(errorEvent, err)
+	}
+
+	return err
+}
+
+func (w *clientStream) Header() (metadata.MD, error) {
+	md, err := w.ClientStream.Header()
+
+	if err != nil {
+		w.sendStreamEvent(errorEvent, err)
+	}
+
+	return md, err
+}
+
+func (w *clientStream) CloseSend() error {
+	err := w.ClientStream.CloseSend()
+
+	if err != nil {
+		w.sendStreamEvent(errorEvent, err)
+	}
+
+	return err
+}
+
+func wrapClientStream(ctx context.Context, s grpc.ClientStream, desc *grpc.StreamDesc) *clientStream {
+	events := make(chan streamEvent)
+	eventsDone := make(chan struct{})
+	finished := make(chan error)
+
+	go func() {
+		defer close(eventsDone)
+
+		for {
+			select {
+			case event := <-events:
+				switch event.Type {
+				case receiveEndEvent:
+					finished <- nil
+					return
+				case errorEvent:
+					finished <- event.Err
+					return
+				}
+			case <-ctx.Done():
+				finished <- ctx.Err()
+				return
+			}
+		}
+	}()
+
+	return &clientStream{
+		ClientStream: s,
+		desc:         desc,
+		events:       events,
+		eventsDone:   eventsDone,
+		finished:     finished,
+	}
+}
+
+func (w *clientStream) sendStreamEvent(eventType streamEventType, err error) {
+	select {
+	case <-w.eventsDone:
+	case w.events <- streamEvent{Type: eventType, Err: err}:
+	}
+}
+
+func (c *Container) traceStreamClientInterceptor() grpc.StreamClientInterceptor {
+	tracer := etrace.NewTracer(trace.SpanKindClient)
+	attrs := []attribute.KeyValue{
+		egrpcinteceptor.RPCSystemGRPC,
+		egrpcinteceptor.GRPCKindStream,
+	}
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			md = metadata.New(nil)
+		}
+		ctx, span := tracer.Start(ctx, method, transport.GrpcHeaderCarrier(md), trace.WithAttributes(attrs...))
+		span.SetAttributes(
+			semconv.RPCMethodKey.String(method),
+			semconv.NetPeerNameKey.String(c.config.Addr),
+		)
+		// 因为我们最先执行trace，所以这里，直接new出来metadata
+		ctx = metadata.NewOutgoingContext(ctx, md)
+
+		s, err := streamer(ctx, desc, cc, method, opts...)
+		if err != nil {
+			span.RecordError(err)
+			if e := eerrors.FromError(err); e != nil {
+				span.SetAttributes(semconv.RPCGRPCStatusCodeKey.Int64(int64(e.Code)))
+			}
+			span.SetStatus(codes.Error, err.Error())
+			span.End()
+			return s, err
+		}
+		stream := wrapClientStream(ctx, s, desc)
+
+		go func() {
+			err := <-stream.finished
+			if err != nil {
+				span.RecordError(err)
+				if e := eerrors.FromError(err); e != nil {
+					span.SetAttributes(semconv.RPCGRPCStatusCodeKey.Int64(int64(e.Code)))
+				}
+				span.SetStatus(codes.Error, err.Error())
+			} else {
+				span.SetStatus(codes.Ok, "OK")
+			}
+			span.End()
+		}()
+
+		return stream, nil
 	}
 }
 
@@ -221,7 +394,7 @@ func fileWithLineNum() string {
 		if !ok {
 			break
 		}
-		if (!(strings.Contains(file, "soego") && strings.HasSuffix(file, "client/egrpc/interceptor.go")) && !strings.HasSuffix(file, ".pb.go") && !strings.Contains(file, "google.golang.org")) || strings.HasSuffix(file, "_test.go") {
+		if (!(strings.Contains(file, "ego") && strings.HasSuffix(file, "client/egrpc/interceptor.go")) && !strings.HasSuffix(file, ".pb.go") && !strings.Contains(file, "google.golang.org")) || strings.HasSuffix(file, "_test.go") {
 			return file + ":" + strconv.FormatInt(int64(line), 10)
 		}
 	}
