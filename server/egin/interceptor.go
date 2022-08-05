@@ -295,11 +295,15 @@ func function(pc uintptr) []byte {
 func metricServerInterceptor() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		beg := time.Now()
+		host := c.Request.Host
+		method := c.Request.Method + "." + c.FullPath()
+		app := extractAPP(c)
+		emetric.ServerStartedCounter.Inc(emetric.TypeHTTP, method, app, host)
 		c.Next()
 		emetric.ServerHandleHistogram.ObserveWithExemplar(time.Since(beg).Seconds(), prometheus.Labels{
 			"tid": etrace.ExtractTraceID(c.Request.Context()),
-		}, emetric.TypeHTTP, c.Request.Method+"."+c.FullPath(), extractAPP(c))
-		emetric.ServerHandleCounter.Inc(emetric.TypeHTTP, c.Request.Method+"."+c.FullPath(), extractAPP(c), http.StatusText(c.Writer.Status()), http.StatusText(c.Writer.Status()))
+		}, emetric.TypeHTTP, method, app, host)
+		emetric.ServerHandleCounter.Inc(emetric.TypeHTTP, method, app, http.StatusText(c.Writer.Status()), http.StatusText(c.Writer.Status()), host)
 	}
 }
 

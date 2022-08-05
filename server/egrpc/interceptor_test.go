@@ -175,8 +175,9 @@ func TestPrometheus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Contains(t, string(text), `ego_server_handle_seconds_count{method="/helloworld.Greeter/SayHello",peer="ego",type="unary"}`)
-	assert.Contains(t, string(text), `ego_server_handle_total{code="OK",method="/helloworld.Greeter/SayHello",peer="ego",type="unary",uniform_code="OK"}`)
+	assert.Contains(t, string(text), `ego_server_handle_seconds_count{method="/helloworld.Greeter/SayHello",peer="ego",rpc_service="helloworld.Greeter",type="unary"}`)
+	assert.Contains(t, string(text), `ego_server_handle_total{code="OK",method="/helloworld.Greeter/SayHello",peer="ego",rpc_service="helloworld.Greeter",type="unary",uniform_code="OK"}`)
+	assert.Contains(t, string(text), `ego_server_started_total{method="/helloworld.Greeter/SayHello",peer="ego",rpc_service="helloworld.Greeter",type="unary"}`)
 }
 
 // Greeter ...
