@@ -1,22 +1,29 @@
 package econf
 
-// Container 容器
+// Container defines a component instance.
 type Container struct {
 	TagName          string
 	WeaklyTypedInput bool
+	Squash           bool
 }
 
 var defaultContainer = Container{
 	TagName:          "mapstructure",
 	WeaklyTypedInput: false,
+	Squash:           false,
 }
 
-// GetOptionTagName 获取当前optionTag
+// GetOptionTagName returns optionTag config of default container
 func GetOptionTagName() string {
 	return defaultContainer.TagName
 }
 
-// GetOptionWeaklyTypedInput 获取当前WeaklyTypedInput
+// GetOptionWeaklyTypedInput returns WeaklyTypedInput config of default container
 func GetOptionWeaklyTypedInput() bool {
 	return defaultContainer.WeaklyTypedInput
+}
+
+// GetOptionSquash returns Squash config of default container
+func GetOptionSquash() bool {
+	return defaultContainer.Squash
 }

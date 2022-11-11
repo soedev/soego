@@ -10,12 +10,13 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/soedev/soego/core/elog"
-	"github.com/soedev/soego/internal/test/helloworld"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
+
+	"github.com/soedev/soego/core/elog"
+	"github.com/soedev/soego/internal/test/helloworld"
 )
 
 func Test_getPeerName(t *testing.T) {

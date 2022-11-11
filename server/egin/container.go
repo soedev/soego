@@ -6,21 +6,22 @@ import (
 	healthcheck "github.com/RaMin0/gin-health-check"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	rpcpb "google.golang.org/genproto/googleapis/rpc/context/attribute_context"
+
 	"github.com/soedev/soego/core/econf"
 	"github.com/soedev/soego/core/elog"
 	"github.com/soedev/soego/core/etrace"
 	"github.com/soedev/soego/core/util/xnet"
-	rpcpb "google.golang.org/genproto/googleapis/rpc/context/attribute_context"
 )
 
-// Container 容器
+// Container defines a component instance.
 type Container struct {
 	config *Config
 	name   string
 	logger *elog.Component
 }
 
-// DefaultContainer 默认容器
+// DefaultContainer returns an default container.
 func DefaultContainer() *Container {
 	return &Container{
 		config: DefaultConfig(),
@@ -28,7 +29,8 @@ func DefaultContainer() *Container {
 	}
 }
 
-// Load 加载配置key
+// Load parses container configuration from configuration provider, such as a toml file,
+// then use the configuration to construct a component container.
 func Load(key string) *Container {
 	c := DefaultContainer()
 	c.logger = c.logger.With(elog.FieldComponentName(key))
@@ -86,22 +88,25 @@ func (c *Container) setAiReqResCelPrg() error {
 			return fmt.Errorf("build cel program fail , %w", err)
 		}
 		c.config.aiReqResCelPrg = prg
+		return nil
 	}
+	c.config.aiReqResCelPrg = nil
 	return nil
 }
 
-// Build 构建组件
+// Build constructs a specific component from container.
 func (c *Container) Build(options ...Option) *Component {
 	for _, option := range options {
 		option(c)
 	}
+
 	server := newComponent(c.name, c.config, c.logger)
 	server.Use(healthcheck.Default())
 	server.Use(c.defaultServerInterceptor())
-
 	if c.config.ContextTimeout > 0 {
 		server.Use(timeoutMiddleware(c.config.ContextTimeout))
 	}
+
 	if c.config.EnableMetricInterceptor {
 		server.Use(metricServerInterceptor())
 	}
@@ -113,12 +118,14 @@ func (c *Container) Build(options ...Option) *Component {
 	if c.config.EnableSentinel {
 		server.Use(c.sentinelMiddleware())
 	}
-	econf.OnChange(func(config *econf.Configuration) {
+
+	econf.OnChange(func(newConf *econf.Configuration) {
 		c.config.mu.Lock()
-		c.config.EnableAccessInterceptorReq = econf.Sub(c.name).GetBool("EnableAccessInterceptorReq")
-		c.config.EnableAccessInterceptorRes = econf.Sub(c.name).GetBool("EnableAccessInterceptorRes")
-		if c.config.AccessInterceptorReqResFilter != econf.Sub(c.name).GetString("AccessInterceptorReqResFilter") {
-			c.config.AccessInterceptorReqResFilter = econf.Sub(c.name).GetString("AccessInterceptorReqResFilter")
+		cf := newConf.Sub(c.name)
+		c.config.EnableAccessInterceptorReq = cf.GetBool("EnableAccessInterceptorReq")
+		c.config.EnableAccessInterceptorRes = cf.GetBool("EnableAccessInterceptorRes")
+		if c.config.AccessInterceptorReqResFilter != cf.GetString("AccessInterceptorReqResFilter") {
+			c.config.AccessInterceptorReqResFilter = cf.GetString("AccessInterceptorReqResFilter")
 			if err := c.setAiReqResCelPrg(); err != nil {
 				c.logger.Warn("init AccessInterceptorReqResFilter fail", elog.FieldErr(err), elog.String("AccessInterceptorReqResFilter", c.config.AccessInterceptorReqResFilter))
 			}

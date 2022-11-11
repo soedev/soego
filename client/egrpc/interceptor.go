@@ -13,7 +13,14 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/soedev/soego/core/eapp"
 	"github.com/soedev/soego/core/eerrors"
@@ -24,16 +31,8 @@ import (
 	"github.com/soedev/soego/core/util/xdebug"
 	"github.com/soedev/soego/core/util/xstring"
 	"github.com/soedev/soego/internal/ecode"
-	"github.com/soedev/soego/internal/tools"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/soedev/soego/internal/egrpcinteceptor"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/protobuf/proto"
+	"github.com/soedev/soego/internal/tools"
 )
 
 // metricUnaryClientInterceptor returns grpc unary request metrics collector interceptor

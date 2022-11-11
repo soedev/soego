@@ -12,11 +12,13 @@ import (
 	"github.com/soedev/soego/internal/ecode"
 )
 
-// Error 错误接口
+// Error defines an grpc error that can be transformed between micro-service caller and micro-service callee.
 type Error interface {
 	error
 	WithMetadata(map[string]string) Error
+	WithMd(map[string]string) Error
 	WithMessage(string) Error
+	WithMsg(string) Error
 }
 
 const (
@@ -32,17 +34,17 @@ type errKey string
 
 var errs = map[errKey]*EgoError{}
 
-// Register 注册错误信息
+// Register registers error instance.
 func Register(egoError *EgoError) {
 	errs[errKey(egoError.Reason)] = egoError
 }
 
-// Error Error信息
+// Error returns error detail message.
 func (x *EgoError) Error() string {
 	return fmt.Sprintf("error: code = %d reason = %s message = %s metadata = %v", x.Code, x.Reason, x.Message, x.Metadata)
 }
 
-// Is 判断是否为根因错误
+// Is will be called in errors.Is method to check error type.
 func (x *EgoError) Is(err error) bool {
 	egoErr, flag := err.(*EgoError)
 	if !flag {
@@ -68,14 +70,30 @@ func (x *EgoError) GRPCStatus() *status.Status {
 }
 
 // WithMetadata with an MD formed by the mapping of key, value.
+// Deprecated: Will be removed in future versions, use WithMd instead.
 func (x *EgoError) WithMetadata(md map[string]string) Error {
 	err := proto.Clone(x).(*EgoError)
 	err.Metadata = md
 	return err
 }
 
+// WithMd with an MD formed by the mapping of key, value.
+func (x *EgoError) WithMd(md map[string]string) Error {
+	err := proto.Clone(x).(*EgoError)
+	err.Metadata = md
+	return err
+}
+
 // WithMessage set message to current EgoError
+// Deprecated: Will be removed in future versions, use WithMsg instead.
 func (x *EgoError) WithMessage(msg string) Error {
+	err := proto.Clone(x).(*EgoError)
+	err.Message = msg
+	return err
+}
+
+// WithMsg set message to current EgoError
+func (x *EgoError) WithMsg(msg string) Error {
 	err := proto.Clone(x).(*EgoError)
 	err.Message = msg
 	return err
@@ -104,22 +122,25 @@ func FromError(err error) *EgoError {
 	if se := new(EgoError); errors.As(err, &se) {
 		return se
 	}
+
 	gs, ok := status.FromError(err)
-	if ok {
-		for _, detail := range gs.Details() {
-			switch d := detail.(type) {
-			case *errdetails.ErrorInfo:
-				e, ok := errs[errKey(d.Reason)]
-				if ok {
-					return e.WithMessage(gs.Message()).WithMetadata(d.Metadata).(*EgoError)
-				}
-				return New(
-					int(gs.Code()),
-					d.Reason,
-					gs.Message(),
-				).WithMetadata(d.Metadata).(*EgoError)
+	if !ok {
+		return New(int(codes.Unknown), UnknownReason, err.Error())
+	}
+
+	ret := New(int(gs.Code()), UnknownReason, gs.Message())
+	for _, detail := range gs.Details() {
+		switch d := detail.(type) {
+		case *errdetails.ErrorInfo:
+			e, ok := errs[errKey(d.Reason)]
+			if ok {
+				return e.WithMsg(gs.Message()).WithMetadata(d.Metadata).(*EgoError)
 			}
+
+			ret.Reason = d.Reason
+			return ret.WithMd(d.Metadata).(*EgoError)
 		}
 	}
-	return New(int(codes.Unknown), UnknownReason, err.Error())
+
+	return ret
 }

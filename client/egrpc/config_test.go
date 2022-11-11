@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/soedev/soego/core/util/xtime"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/balancer/roundrobin"
+
+	"github.com/soedev/soego/core/util/xtime"
 )
 
 func TestDefaultConfig(t *testing.T) {

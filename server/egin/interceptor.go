@@ -18,12 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/cel-go/common/types"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/soedev/soego/core/eapp"
-	"github.com/soedev/soego/core/elog"
-	"github.com/soedev/soego/core/emetric"
-	"github.com/soedev/soego/core/etrace"
-	"github.com/soedev/soego/core/transport"
-	"github.com/soedev/soego/internal/tools"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
@@ -31,6 +25,13 @@ import (
 	"go.uber.org/zap"
 	rpcpb "google.golang.org/genproto/googleapis/rpc/context/attribute_context"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/soedev/soego/core/eapp"
+	"github.com/soedev/soego/core/elog"
+	"github.com/soedev/soego/core/emetric"
+	"github.com/soedev/soego/core/etrace"
+	"github.com/soedev/soego/core/transport"
+	"github.com/soedev/soego/internal/tools"
 )
 
 var (
@@ -198,7 +199,11 @@ func (c *Container) defaultServerInterceptor() gin.HandlerFunc {
 					ctx.Error(rec.(error)) // nolint: errcheck
 					ctx.Abort()
 				} else {
-					ctx.AbortWithStatus(http.StatusInternalServerError)
+					if c.config.recoveryFunc == nil {
+						c.config.recoveryFunc = defaultRecoveryFunc
+					}
+
+					c.config.recoveryFunc(ctx, rec)
 				}
 
 				event = "recover"

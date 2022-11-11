@@ -57,8 +57,9 @@ type opts struct {
 	arguments         []string // 命令行参数
 }
 
-//go:generate protoc -I. --go_out=module=github.com/soedev/soego/core/eerrors,Mcore/eerrors/errors.proto=github.com/soedev/soego/core/eerrors:core/eerrors core/eerrors/errors.proto
 // New new Ego
+//
+//go:generate protoc -I. --go_out=module=github.com/soedev/soego/core/eerrors,Mcore/eerrors/errors.proto=github.com/soedev/soego/core/eerrors:core/eerrors core/eerrors/errors.proto
 func New(options ...Option) *SoEgo {
 	e := &SoEgo{
 		// 第一部分 系统数据

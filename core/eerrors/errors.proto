@@ -4,7 +4,7 @@ package errors;
 
 option go_package = "github.com/soedev/soego/eerrors;eerrors";
 option java_multiple_files = true;
-option java_package = "com.github.soedev.eerrors";
+option java_package = "com.github.gotomicro.eerrors";
 
 message EgoError {
   int32 code = 1;

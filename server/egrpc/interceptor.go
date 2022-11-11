@@ -11,6 +11,14 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+
 	"github.com/soedev/soego/core/eerrors"
 	"github.com/soedev/soego/core/elog"
 	"github.com/soedev/soego/core/emetric"
@@ -18,17 +26,9 @@ import (
 	"github.com/soedev/soego/core/transport"
 	"github.com/soedev/soego/core/util/xstring"
 	"github.com/soedev/soego/internal/ecode"
+	"github.com/soedev/soego/internal/egrpcinteceptor"
 	"github.com/soedev/soego/internal/tools"
 	"github.com/soedev/soego/internal/xcpu"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
-
-	"github.com/soedev/soego/internal/egrpcinteceptor"
-	"google.golang.org/grpc/peer"
 )
 
 func prometheusUnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
